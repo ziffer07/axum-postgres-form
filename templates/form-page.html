@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Page</title>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/form-page">Form</a></li>
+        </ul>
+    </nav>
+
+    <h1>Fill form</h1>
+
+    <form action="/form-page" method="post">
+        <input type="text" name="name" placeholder="Enter your name" value="{{ name }}"><br>
+        <input type="text" name="email" placeholder="Enter your email" value="{{ email }}"><br>
+        <button type="submit">Submit</button>
+    </form>
+
+    {{ name }} <br>
+    {{ email }}
+</body>
+</html>
