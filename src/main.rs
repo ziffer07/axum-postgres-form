@@ -1,9 +1,10 @@
 use std::{str::FromStr, time::Duration};
 
-use axum::{Form, Router, extract::State, response::{Html, IntoResponse, Response}, routing::get};
+use axum::{Form, Router, body::Body, extract::State, http::StatusCode, response::{Html, IntoResponse, Redirect, Response}, routing::get};
 use askama::Template;
 use serde::{Deserialize};
 use sqlx::{ConnectOptions, PgPool, postgres::{PgConnectOptions, PgPoolOptions}};
+use thiserror::Error;
 
 
 struct HtmlTemplate<T> (T);
@@ -19,45 +20,56 @@ where
     }
 }
 
-
+// These are all the templates needed. One template represents one page in .html file ---------------------------------------------------//
 #[derive(Template)]
 #[template(path = "index.html")]
-struct HomeTemplate{}
+struct HomeTemplate{
+    form_data: Vec<FormData>,
+}
 
 #[derive(Template)]
 #[template(path = "form-page.html")]
-struct FormPageTemplate{
-    name: String,
-    email: String,
-}
+struct FormPageTemplate{}
 
-#[derive(Deserialize)]
+#[derive(Template)]
+#[template(path = "server-error.html")]
+struct ServerErrorTemplate{}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------//
+
+// This struct has data that we are going to store in our database -----------------------------------------------------------------------//
+#[derive(sqlx::FromRow, Deserialize)]
 struct FormData {
     name: String,
     email: String,
 }
+// ---------------------------------------------------------------------------------------------------------------------------------------//
 
 
 
+// Blow are all the handlers that we need to post a form, store in database and display stuff from db on frontend ------------------------//
 
-async fn home_page_handler() -> impl IntoResponse {
-    let template = HomeTemplate{};
-    HtmlTemplate(template)
+async fn home_page_handler(State(app_state): State<AppState>) -> Result<impl IntoResponse, AppError> {
+    let form_data = get_all_data(&app_state.connection_pool).await?;
+    let template = HomeTemplate{
+        form_data,
+    };
+    Ok(HtmlTemplate(template))
 }
 
 async fn form_page_handler() -> impl IntoResponse {
-    let template = FormPageTemplate{
-        name: String::new(),
-        email: String::new(),
-    };
+    let template = FormPageTemplate{};
     HtmlTemplate(template)
 }
 
-async fn post_form_handler(State(app_state): State<AppState>, Form(data_fields): Form<FormData>) -> impl IntoResponse {
-    let template = FormPageTemplate{
-        name: data_fields.name.clone(),
-        email: data_fields.email.clone(),
-    };
+async fn post_form_handler(
+    State(app_state): State<AppState>, 
+    Form(data_fields): Form<FormData>
+) -> Response {
+    // let template = FormPageTemplate{
+    //     name: data_fields.name.clone(),
+    //     email: data_fields.email.clone(),
+    // };
 
     // let _ = add_name_email_to_db(
     //     &app_state.connection_pool,
@@ -73,11 +85,12 @@ async fn post_form_handler(State(app_state): State<AppState>, Form(data_fields):
         Ok(_) => {},
         Err(e) => eprintln!("Database error: {}", e),
     }
-    HtmlTemplate(template)
+    Redirect::to("/").into_response()
 }
 
+// --------------------------------------------------------------------------------------------------------------------------------------------//
 
-
+// Function below has the routes that are useful for our program ------------------------------------------------------------------------------//
 fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(home_page_handler))
@@ -85,8 +98,11 @@ fn create_router(state: AppState) -> Router {
         .with_state(state)
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------//
 
-// Database related code
+
+
+// Database related logic code ---------------------------------------------------------------------------------------------------------------------------//
 #[derive(Clone)]
 struct AppState {
     connection_pool: PgPool,
@@ -126,6 +142,19 @@ async fn add_name_email_to_db(pool: &PgPool, name: &str, email: &str) -> Result<
     Ok(())
 }
 
+async fn get_all_data(pool: &PgPool) -> Result<Vec<FormData>, sqlx::Error> {
+    let form_data: Vec<FormData> = sqlx::query_as(
+        "SELECT name, email FROM contents ORDER BY contents.id DESC"
+    ).fetch_all(pool).await?;
+
+    Ok(form_data)
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------------------//
+
+
+// Main connection --------------------------------------------------------------------------------------------------------------------------------//
+
 #[tokio::main]
 async fn main() {
     let pool = database_connection().await;
@@ -139,3 +168,36 @@ async fn main() {
 
     axum::serve(listener, app).await.unwrap();
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------------------//
+
+
+// Errors in logic ------------------------------------------------------------------------------------------------------------------------------//
+
+#[derive(Error, Debug)]
+pub enum AppError {
+    #[error("Database error")]
+    Database(#[from] sqlx::Error),
+
+    #[error("Template error")]
+    Template(#[from] askama::Error),
+}
+
+impl IntoResponse for AppError{
+    fn into_response(self) -> Response<Body> {
+        let (status, response) = match self {
+            AppError::Database(data_error) => server_error(data_error.to_string()),
+            AppError::Template(error) => server_error(error.to_string()),
+        };
+
+        (status, response).into_response()
+    }
+}
+
+fn server_error(_e: String) -> (StatusCode, Response<Body>) {
+
+    let html_string = ServerErrorTemplate{}.render().unwrap();
+    (StatusCode::INTERNAL_SERVER_ERROR, Html(html_string).into_response())
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------------------//

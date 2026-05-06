@@ -13,6 +13,20 @@
         </ul>
     </nav>
     <h1>Home Page</h1>
+{% if form_data.is_empty()%}
+<h1>Nothing in database</h1>
+{% else %}
+{% for each_form in form_data %}
+<div class="card">
+    <div>
+        <div>
+            <p>{{each_form.name}}</p>
+            <p>{{each_form.email}}</p>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
+{% endif %}
 </body>
 </html>
