@@ -104,11 +104,11 @@ fn create_router(state: AppState) -> Router {
 
 // Database related logic code ---------------------------------------------------------------------------------------------------------------------------//
 #[derive(Clone)]
-struct AppState {
+pub struct AppState {
     connection_pool: PgPool,
 }
 
-async fn database_connection() -> PgPool {
+pub async fn database_connection() -> PgPool {
     let db_url = dotenvy::var("DATABASE_URL").expect(" Failed to connect to database");
 
     let options = PgConnectOptions::from_str(&db_url)
@@ -201,3 +201,6 @@ fn server_error(_e: String) -> (StatusCode, Response<Body>) {
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------------------//
+
+#[cfg(test)]
+mod tests;

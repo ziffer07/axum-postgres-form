@@ -35,12 +35,22 @@ To run the project you can do as follows:
 
 The localhost http address will be in the printed in the terminal, you can copy that in your browser and run the code.
 
+The Data stored in postgres locally is now accessible on the front page. The process is as follows:
+
+1. You fill the form with name and email.
+
+2. Data is stored in postgres (psql) using PgPool and add_name_email_to_db query. Upon submitting the user is redirected to the index.html.
+
+3. Then using get_all_data we query the database to get all elements of the form using name and email in descending order by their id.
+
+4. The sql error is handled using AppError enum.
+
+5. Each element is then displayed in index.html
+
 
 ### Next Updates
 1. Add logging and tracing features to the code
 
 2. Seperate the main.rs into files where we have handler file, template file.
 
-3. Use the data stored in postgres and query it on the front end.
-
-4. Update Error Handling and handle all edge cases
+3. Update Error Handling and handle all edge cases
