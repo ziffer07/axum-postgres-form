@@ -42,6 +42,8 @@ struct ServerErrorTemplate{}
 struct FormData {
     name: String,
     email: String,
+    title: String,
+    description: String,
 }
 // ---------------------------------------------------------------------------------------------------------------------------------------//
 
@@ -80,7 +82,9 @@ async fn post_form_handler(
     match add_name_email_to_db(
         &app_state.connection_pool,
         &data_fields.name, 
-        &data_fields.email
+        &data_fields.email,
+        &data_fields.title,
+        &data_fields.description,
     ).await {
         Ok(_) => {},
         Err(e) => eprintln!("Database error: {}", e),
@@ -117,6 +121,14 @@ pub async fn database_connection() -> PgPool {
 
     let pg_pool = PgPoolOptions::new()
         .acquire_timeout(Duration::from_secs(5))
+        .max_connections(10)
+        .min_connections(1)
+        // Drop connections idle longer than 10 minutes
+        .idle_timeout(Duration::from_secs(600))
+        // Recycle connections before the server closes them
+        .max_lifetime(Duration::from_secs(1800))
+        // Test connection health before handing it out
+        .test_before_acquire(true)
         .connect_with(options)
         .await
         .expect("Failed to connect to database");
@@ -130,11 +142,13 @@ pub async fn database_connection() -> PgPool {
 }
 
 // Query into database tables
-async fn add_name_email_to_db(pool: &PgPool, name: &str, email: &str) -> Result<(), sqlx::Error> {
+async fn add_name_email_to_db(pool: &PgPool, name: &str, email: &str, title: &str, description: &str) -> Result<(), sqlx::Error> {
     sqlx::query!(
-        "INSERT INTO contents (name, email) VALUES ($1, $2)",
+        r"INSERT INTO contents (name, email, title, description) VALUES ($1, $2, $3, $4)",
         name,
-        email
+        email,
+        title,
+        description,
     )
     .execute(pool)
     .await?;
@@ -144,7 +158,7 @@ async fn add_name_email_to_db(pool: &PgPool, name: &str, email: &str) -> Result<
 
 async fn get_all_data(pool: &PgPool) -> Result<Vec<FormData>, sqlx::Error> {
     let form_data: Vec<FormData> = sqlx::query_as(
-        "SELECT name, email FROM contents ORDER BY contents.id DESC"
+        "SELECT name, email, title, description FROM contents ORDER BY contents.id DESC"
     ).fetch_all(pool).await?;
 
     Ok(form_data)
