@@ -48,9 +48,14 @@ The Data stored in postgres locally is now accessible on the front page. The pro
 5. Each element is then displayed in index.html
 
 
+I have added a few more columns of title and description in the table. However, I couldn't just run the migration again. Therefore, I had to drop the database and then create new database again and then run sqlx migrations to add table. Then, I had to include the filed that I added in the form-page and update main.rs with title and description. I also had to update pgpool because my instance was somehow running to had to add some commands to cancel the connection after a while.
+
+
 ### Next Updates
 1. Add logging and tracing features to the code
 
 2. Seperate the main.rs into files where we have handler file, template file.
 
 3. Update Error Handling and handle all edge cases
+
+4. Update more field and try to make changes happen without too much hassle like above.
