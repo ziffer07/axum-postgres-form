@@ -1,6 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Form Page</title>
+<style>
+  body { font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 16px; }
+  nav ul { display: flex; gap: 16px; list-style: none; padding: 0; }
+  form { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  input, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+  button { padding: 10px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  button:hover { background: #555; }
+
+  .upload-tile {
+    border: 2px dashed #ccc;
+    border-radius: 6px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    color: #666;
+    font-size: 14px;
+  }
+  .upload-tile input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+  .upload-tile:hover { border-color: #888; background: #fafafa; }
+  #preview { max-width: 100%; border-radius: 4px; margin-top: 8px; display: none; }
+  #file-name { font-size: 13px; color: #444; margin-top: 6px; }
+</style>
+</head>
+<body>
+<nav>
+<ul>
+<li><a href="/">Home</a></li>
+<li><a href="/form-page">Form</a></li>
+</ul>
+</nav>
+<h1>Fill form</h1>
+<form action="/form-page" method="post" enctype="multipart/form-data">
+  <input type="text" name="name" placeholder="Enter your name">
+  <input type="text" name="email" placeholder="Enter your email">
+  <input type="text" name="title" placeholder="Enter your title">
+  <textarea name="description" placeholder="Enter your description" rows="4"></textarea>
+
+  <div class="upload-tile" id="upload-tile">
+    <input type="file" name="image" accept="image/*" id="image-input">
+    📷 Click to upload an image
+    <div id="file-name"></div>
+    <img id="preview" alt="Preview">
+  </div>
+
+  <button type="submit">Submit</button>
+</form>
+
+<script>
+  const input = document.getElementById('image-input');
+  const preview = document.getElementById('preview');
+  const fileName = document.getElementById('file-name');
+
+  input.addEventListener('change', () => {
+    const file = input.files[0];
+    if (file) {
+      fileName.textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = e => {
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Form Page</title>
@@ -23,4 +121,4 @@
         <button type="submit">Submit</button>
     </form>
 </body>
-</html>
+</html> -->

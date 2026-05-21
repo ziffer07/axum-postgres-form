@@ -1,10 +1,11 @@
-use std::{str::FromStr, time::Duration};
+use std::{path::Path, str::FromStr, time::{Duration, SystemTime}};
 
-use axum::{Form, Router, body::Body, extract::State, http::StatusCode, response::{Html, IntoResponse, Redirect, Response}, routing::get};
+use axum::{Router, body::Body, extract::{State, multipart::{Multipart}}, http::StatusCode, response::{Html, IntoResponse, Redirect, Response}, routing::get};
 use askama::Template;
 use serde::{Deserialize};
 use sqlx::{ConnectOptions, PgPool, postgres::{PgConnectOptions, PgPoolOptions}};
 use thiserror::Error;
+use tower_http::services::ServeDir;
 
 
 struct HtmlTemplate<T> (T);
@@ -44,6 +45,7 @@ struct FormData {
     email: String,
     title: String,
     description: String,
+    image_path: Option<String>
 }
 // ---------------------------------------------------------------------------------------------------------------------------------------//
 
@@ -64,46 +66,61 @@ async fn form_page_handler() -> impl IntoResponse {
     HtmlTemplate(template)
 }
 
+
 async fn post_form_handler(
-    State(app_state): State<AppState>, 
-    Form(data_fields): Form<FormData>
+    State(app_state): State<AppState>,
+    mut multipart: Multipart
 ) -> Response {
-    // let template = FormPageTemplate{
-    //     name: data_fields.name.clone(),
-    //     email: data_fields.email.clone(),
-    // };
+    let mut name = String::new();
+    let mut email = String::new();
+    let mut title = String::new();
+    let mut description = String::new();
+    let mut image_path: Option<String> = None;
 
-    // let _ = add_name_email_to_db(
-    //     &app_state.connection_pool,
-    //     &data_fields.name, 
-    //     &data_fields.email
-    // ).await;
+    while let Some(field) = multipart.next_field().await.unwrap_or(None) {
+        match field.name().unwrap_or("") {
+            "name" => name = field.text().await.unwrap_or_default(),
+            "email" => email = field.text().await.unwrap_or_default(),
+            "title" => title = field.text().await.unwrap_or_default(),
+            "description" => description = field.text().await.unwrap_or_default(),
+            "image" => {
+                let file_name = field.file_name()
+                    .filter(|n| !n.is_empty())
+                    .map(|n| n.to_string());
 
-    match add_name_email_to_db(
+                if let Some(name) = file_name {
+                    let bytes = field.bytes().await.unwrap_or_default();
+                    if !bytes.is_empty() {
+                        let save_path = format!("uploads/{}", name);
+                        tokio::fs::create_dir_all("uploads").await.ok();
+                        tokio::fs::write(&save_path, &bytes).await.ok();
+                        image_path = Some(save_path);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+     match add_name_email_to_db(
         &app_state.connection_pool,
-        &data_fields.name, 
-        &data_fields.email,
-        &data_fields.title,
-        &data_fields.description,
+        &name, &email, &title, &description,
+        image_path.as_deref(),
     ).await {
         Ok(_) => {},
         Err(e) => eprintln!("Database error: {}", e),
     }
+
     Redirect::to("/").into_response()
 }
 
-// --------------------------------------------------------------------------------------------------------------------------------------------//
 
-// Function below has the routes that are useful for our program ------------------------------------------------------------------------------//
 fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(home_page_handler))
         .route("/form-page", get(form_page_handler).post(post_form_handler))
+        .nest_service("/uploads", ServeDir::new("uploads"))
         .with_state(state)
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------//
-
 
 
 // Database related logic code ---------------------------------------------------------------------------------------------------------------------------//
@@ -142,13 +159,21 @@ pub async fn database_connection() -> PgPool {
 }
 
 // Query into database tables
-async fn add_name_email_to_db(pool: &PgPool, name: &str, email: &str, title: &str, description: &str) -> Result<(), sqlx::Error> {
+async fn add_name_email_to_db(
+    pool: &PgPool,
+    name: &str,
+    email: &str,
+    title: &str,
+    description: &str,
+    image_path: Option<&str>,
+) -> Result<(), sqlx::Error> {
     sqlx::query!(
-        r"INSERT INTO contents (name, email, title, description) VALUES ($1, $2, $3, $4)",
+        r"INSERT INTO contents (name, email, title, description, image_path) VALUES ($1, $2, $3, $4, $5)",
         name,
         email,
         title,
         description,
+        image_path,
     )
     .execute(pool)
     .await?;
@@ -158,7 +183,7 @@ async fn add_name_email_to_db(pool: &PgPool, name: &str, email: &str, title: &st
 
 async fn get_all_data(pool: &PgPool) -> Result<Vec<FormData>, sqlx::Error> {
     let form_data: Vec<FormData> = sqlx::query_as(
-        "SELECT name, email, title, description FROM contents ORDER BY contents.id DESC"
+        "SELECT name, email, title, description, regexp_replace(image_path, '^uploads/', '') AS image_path FROM contents ORDER BY contents.id DESC"
     ).fetch_all(pool).await?;
 
     Ok(form_data)

@@ -1,6 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Form DB</title>
+<style>
+  body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 16px; }
+  nav ul { display: flex; gap: 16px; list-style: none; padding: 0; }
+
+  .cards { display: flex; flex-direction: column; gap: 16px; }
+
+  .card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    gap: 0;
+  }
+
+  .card-image {
+    width: 180px;
+    min-height: 140px;
+    flex-shrink: 0;
+    background: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 13px;
+  }
+
+  .card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .card-body { padding: 16px; flex: 1; }
+  .card-meta { font-size: 13px; color: #666; margin-bottom: 8px; }
+  .card-title { font-size: 18px; font-weight: bold; margin: 0 0 8px 0; }
+  .card-description { font-size: 14px; color: #333; margin: 0; }
+</style>
+</head>
+<body>
+<nav>
+<ul>
+<li><a href="/">Home</a></li>
+<li><a href="/form-page">Form page</a></li>
+</ul>
+</nav>
+<h1>Home Page</h1>
+{% if form_data.is_empty() %}
+<p>Nothing in database</p>
+{% else %}
+<div class="cards">
+{% for each_form in form_data %}
+<div class="card">
+    <div class="card-image">
+    {% if let Some(path) = each_form.image_path %}
+    <img src="/uploads/{{ path }}" alt="Card image">
+    {% else %}
+    No image
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <div class="card-meta">{{ each_form.name }} &middot; {{ each_form.email }}</div>
+    <h2 class="card-title">{{ each_form.title }}</h2>
+    <p class="card-description">{{ each_form.description }}</p>
+  </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Form DB</title>
@@ -22,6 +109,8 @@
         <div>
             <p>{{each_form.name}}</p>
             <p>{{each_form.email}}</p>
+            <p>{{each_form.title}}</p>
+            <p>{{each_form.description}}</p>
         </div>
     </div>
 </div>
@@ -29,4 +118,4 @@
 
 {% endif %}
 </body>
-</html>
+</html> -->

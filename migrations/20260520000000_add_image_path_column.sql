@@ -1,0 +1,2 @@
+ALTER TABLE contents
+    ADD COLUMN IF NOT EXISTS image_path TEXT;
